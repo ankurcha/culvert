@@ -1,0 +1,6 @@
+<configuration>
+  <property>
+    <name>database.key</name>
+    <value>someValue</value>
+  </property>
+</configuration>

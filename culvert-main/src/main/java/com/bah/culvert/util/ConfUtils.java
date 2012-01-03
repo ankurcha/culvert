@@ -19,6 +19,8 @@ package com.bah.culvert.util;
 
 import java.util.Map.Entry;
 
+import javax.security.auth.login.ConfigurationSpi;
+
 import org.apache.hadoop.conf.Configuration;
 
 public class ConfUtils {
@@ -61,6 +63,29 @@ public class ConfUtils {
       }
     }
     return conf;
+  }
+
+  /**
+   * Combine a set of configurations into a single {@link Configuration}.
+   * @param primary {@link Configuration} whose values take precedence over all
+   *        others
+   * @param secondary {@link Configuration Configurations} to add to the primary
+   *        configuration. If the primary configuration has the key all ready,
+   *        the value will not be updated. Precedence is given to the order of
+   *        {@link Configuration Configurations}.
+   * @return a new configuration that is a combination of the sent
+   *         configurations. The original configurations are <i>not</i> modified
+   */
+  public static Configuration combineConfigurations(Configuration primary,
+      Configuration... secondary) {
+    Configuration out = new Configuration(primary);
+    for (Configuration conf : secondary) {
+      for (Entry<String, String> entry : conf) {
+        if (out.get(entry.getKey()) == null)
+          out.set(entry.getKey(), entry.getValue());
+      }
+    }
+    return out;
   }
 
 }

@@ -28,6 +28,8 @@ public final class Constants {
    * Database storage keys
    */
   public static final String DATABASE_ADAPTER_CLASS_KEY = "culvert.database.adapter.class";
+  /** Prefix for database configuration values */
   public static final String DATABASE_CONF_PREFIX = "culvert.database.conf";
-
+  /** Conf key for the file location of the database conf */
+  public static final String DATABASE_CONF_SOURCE = "culvert.database.conf.source";
 }
