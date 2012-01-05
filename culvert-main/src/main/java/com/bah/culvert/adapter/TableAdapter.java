@@ -148,4 +148,13 @@ public abstract class TableAdapter extends BaseConfigurable implements
   public void write(DataOutput out) throws IOException {
     getConf().write(out);
   }
+
+  /**
+   * Flush the recent {@link Put Puts} from the client to the server.
+   * <p>
+   * If the adapter implementation has an auto-flush option, then flushing
+   * should not make a difference. However, flushing should be used with caution
+   * as it may incur serious performance hindrances.
+   */
+  public abstract void flush() throws IOException;
 }

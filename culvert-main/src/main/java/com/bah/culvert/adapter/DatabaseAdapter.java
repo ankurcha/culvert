@@ -17,6 +17,7 @@
  */
 package com.bah.culvert.adapter;
 
+import java.io.Closeable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -39,7 +40,7 @@ import static com.bah.culvert.util.Constants.*;
  * a database.
  */
 public abstract class DatabaseAdapter extends BaseConfigurable implements
-    Configurable, Writable {
+    Configurable, Writable, Closeable {
 
   public static final byte[][] NO_SPLIT_KEYS = new byte[0][];
 
@@ -131,6 +132,8 @@ public abstract class DatabaseAdapter extends BaseConfigurable implements
    *        configuration.
    * @see Constants
    * @return A database adapter ready to be used.
+   * @throws RuntimeException if a database adapter cannot be read from the
+   *         configuration
    */
   public static DatabaseAdapter readFromConfiguration(Configuration conf) {
     try {
@@ -218,5 +221,10 @@ public abstract class DatabaseAdapter extends BaseConfigurable implements
       Configuration conf) {
     ConfUtils.packConfigurationInPrefix(DATABASE_CONF_PREFIX, databaseConf,
         conf);
+  }
+
+  @Override
+  public void close() {
+    // TODO implement close - right now blank, but will be shutting down tables
   }
 }

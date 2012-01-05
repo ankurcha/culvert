@@ -263,6 +263,11 @@ public class HBaseTableAdapter extends TableAdapter {
     }
   }
 
+  @Override
+  public void flush() throws IOException {
+    this.table.flushCommits();
+  }
+
   /**
    * Convert from an HBase result into a Culvert result
    */

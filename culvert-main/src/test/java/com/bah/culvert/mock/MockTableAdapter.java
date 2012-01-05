@@ -81,4 +81,9 @@ public class MockTableAdapter extends TableAdapter {
     return Arrays.asList("localhost");
   }
 
+  @Override
+  public void flush() throws IOException {
+    // noop
+  }
+
 }

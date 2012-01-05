@@ -17,6 +17,7 @@
  */
 package com.bah.culvert.inmemory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -313,5 +314,10 @@ public class InMemoryTable extends TableAdapter {
   @Override
   public List<String> getHosts() {
     return Arrays.asList("localhost");
+  }
+
+  @Override
+  public void flush() throws IOException {
+    // noop
   }
 }

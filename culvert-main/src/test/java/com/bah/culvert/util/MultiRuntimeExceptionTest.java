@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
+import static com.bah.culvert.util.Exceptions.MultiRuntimeException;
 
 public class MultiRuntimeExceptionTest {
 
@@ -32,8 +33,8 @@ public class MultiRuntimeExceptionTest {
   @Test
   public void testEmptyMultiRuntimeException() {
     List<Throwable> list = new ArrayList<Throwable>();
-    Assert.assertNotNull(MultiRuntimeException.get(null));
-    Assert.assertNotNull(MultiRuntimeException.get(list));
+    Assert.assertNotNull(MultiRuntimeException(null));
+    Assert.assertNotNull(MultiRuntimeException(list));
   }
 
   /**
@@ -45,7 +46,7 @@ public class MultiRuntimeExceptionTest {
     List<Throwable> list = new ArrayList<Throwable>();
     list.add(new RuntimeException("This is test exception 1"));
     list.add(new RuntimeException("This is test exception 2"));
-    MultiRuntimeException mre = MultiRuntimeException.get(list);
+    MultiRuntimeException mre = MultiRuntimeException(list);
     Assert.assertNotNull(mre.getMessage());
   }
 

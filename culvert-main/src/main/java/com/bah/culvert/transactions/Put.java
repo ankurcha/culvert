@@ -44,7 +44,7 @@ public class Put implements Writable {
   }
 
   /**
-   * Put a list of keys and values
+   * Put a list of keys and values.
    * 
    * @param keyValueList to put
    */

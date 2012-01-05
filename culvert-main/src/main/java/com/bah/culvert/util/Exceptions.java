@@ -17,6 +17,8 @@
  */
 package com.bah.culvert.util;
 
+import java.util.Collection;
+
 /**
  * Utility class for interacting with {@link Exception Exceptions}
  */
@@ -36,6 +38,45 @@ public final class Exceptions {
     if (t instanceof RuntimeException)
       return (RuntimeException) t;
     return new RuntimeException(t);
+  }
+
+  /**
+   * Represents multiple exceptions being thrown.
+   */
+  public static class MultiRuntimeException extends RuntimeException {
+    private MultiRuntimeException(String message, Throwable firstSource) {
+      super(message, firstSource);
+    }
+  }
+
+  public static MultiRuntimeException MultiRuntimeException(
+      Collection<Throwable> sources) {
+    if (sources == null || sources.size() == 0) {
+      return new MultiRuntimeException(
+          "MultiRuntimeException thrown with no sources!",
+          new RuntimeException());
+    }
+    StringBuilder msgBuilder = new StringBuilder();
+    msgBuilder
+        .append("Multiple remote exceptions thrown. Stack trace to first included, rest in message below.\n");
+    int traceNum = 1;
+    for (Throwable t : sources) {
+      if (traceNum > 1) {
+        msgBuilder.append(String.format("Exception %d\n", traceNum));
+        msgBuilder.append(t.getClass().getName());
+        msgBuilder.append("\n");
+        msgBuilder.append(t.getMessage());
+        msgBuilder.append("\n");
+        for (StackTraceElement element : t.getStackTrace()) {
+          msgBuilder.append(String.format("\t%s:%d %s\n",
+              element.getClassName(), element.getLineNumber(),
+              element.getMethodName()));
+        }
+      }
+      traceNum++;
+    }
+    return new MultiRuntimeException(msgBuilder.toString(), sources.iterator()
+        .next());
   }
 
 }

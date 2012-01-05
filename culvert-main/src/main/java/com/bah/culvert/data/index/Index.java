@@ -292,7 +292,8 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * Get the index table for this index. The index is assumed to have complete
    * control over all data encoded in the index table, so that its contents
    * aren't clobbered by other table users.
-   * @return The Index table used by this index.
+   * @return The Index table used by this index, or <tt>null</tt> if one has not
+   *         be configured for this index
    */
   public TableAdapter getIndexTable() {
     return getTableAdapter(getConf(), INDEX_TABLE_CONF_KEY);
@@ -328,11 +329,18 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * Gets a table adapter from a configuration.
    * @param conf
    * @param adapterSetting
-   * @return
+   * @return a table ready to use, or <tt>null</tt> if none is stored in the
+   *         configuration.
    */
   private static TableAdapter getTableAdapter(Configuration conf,
       String adapterSetting) {
-    DatabaseAdapter db = DatabaseAdapter.readFromConfiguration(conf);
+    DatabaseAdapter db;
+    try {
+      db = DatabaseAdapter.readFromConfiguration(conf);
+    } catch (RuntimeException e) {
+      // short circuit and quit if the db cannot be created
+      return null;
+    }
     String tableName = conf.get(adapterSetting);
     return db.getTableAdapter(tableName);
   }
@@ -400,7 +408,7 @@ public abstract class Index extends BaseConfigurable implements Writable {
     TableAdapter index = getIndexTable();
     return index.getHosts();
   }
-
+  
   @Override
   public void readFields(DataInput arg0) throws IOException {
     Configuration conf = new Configuration();
@@ -413,4 +421,16 @@ public abstract class Index extends BaseConfigurable implements Writable {
     getConf().write(arg0);
   }
 
+  /**
+   * Flush all the recent puts to the index table.
+   * <p>
+   * This should be used with caution as it may cause significant write speed
+   * reduction and/or overhead.
+   * @throws IOException if the flush fails.
+   */
+  public void flush() throws IOException {
+    TableAdapter table = this.getIndexTable();
+    if (table != null)
+      table.flush();
+  }
 }

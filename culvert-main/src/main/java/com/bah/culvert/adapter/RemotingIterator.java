@@ -42,7 +42,7 @@ import com.bah.culvert.data.Result;
 import com.bah.culvert.data.ResultComparator;
 import com.bah.culvert.data.index.Index;
 import com.bah.culvert.util.Bytes;
-import com.bah.culvert.util.MultiRuntimeException;
+import com.bah.culvert.util.Exceptions;
 
 /**
  * Used to perform a remote parallel fetch.
@@ -291,7 +291,7 @@ class RemotingIterator implements Iterator<Result> {
       next |= future;
     }
     if (remoteExceptions.size() > 0) {
-      throw MultiRuntimeException.get(remoteExceptions);
+      throw Exceptions.MultiRuntimeException(remoteExceptions);
     }
     return next;
   }
@@ -312,7 +312,7 @@ class RemotingIterator implements Iterator<Result> {
       resultQueue.addAll(results);
 
       if (exceptions.size() > 0) {
-        throw MultiRuntimeException.get(exceptions);
+        throw Exceptions.MultiRuntimeException(exceptions);
       }
       if (resultQueue.size() == 0) {
         throw new ArrayIndexOutOfBoundsException(

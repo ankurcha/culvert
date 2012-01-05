@@ -18,9 +18,8 @@
 package com.bah.culvert;
 
 import static junit.framework.Assert.assertEquals;
-import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
-import static org.junit.Assert.assertTrue;
+import static org.easymock.EasyMock.expectLastCall;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.configuration.CConfiguration;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
-import com.bah.culvert.data.Result;
 import com.bah.culvert.data.index.Index;
 import com.bah.culvert.inmemory.InMemoryDB;
 import com.bah.culvert.mock.MockDatabaseAdapter;
@@ -63,6 +61,7 @@ public class ClientTest {
     client.addIndex(ix1);
     client.addIndex(ix2);
     Assert.assertNotNull(client.getIndices());
+    assertEquals(2, client.getIndices().length);
   }
 
   @Test
@@ -75,8 +74,8 @@ public class ClientTest {
     Client client = new Client(conf);
     client.addIndex(ix1);
     client.addIndex(ix2);
-    client.getIndicesForTable("c");
-    // Assert.assertNotNull(client.getIndices());
+    assertEquals(ix1, client.getIndicesForTable("c")[0]);
+    assertEquals(2, client.getIndices().length);
   }
 
   @Test
@@ -118,8 +117,8 @@ public class ClientTest {
     client.addIndex(ix1);
     client.addIndex(ix2);
     client.getIndexMap();
-    // Assert.assertNotNull(client.getIndicesForColumn("c", "a".getBytes(),
-    // "b".getBytes()));
+    Assert.assertNotNull(client.getIndicesForColumn("c", "a".getBytes(),
+        "b".getBytes()));
   }
 
   @Test
@@ -135,8 +134,7 @@ public class ClientTest {
     Configuration clientConf = new Configuration(false);
     Client c = PowerMock.createPartialMock(Client.class,
         new String[] { "getIndices" }, clientConf);
-    // make sure we can get the configuration
-    // c.setConf(clientConf);
+
     // return the mock index when asked
     expect(c.getIndices()).andReturn(new Index[] { mockIndex });
 
@@ -146,9 +144,6 @@ public class ClientTest {
     ArrayList<CKeyValue> keyValueList = new ArrayList<CKeyValue>();
     keyValueList.add(keyValue);
     Put put = new Put(keyValueList);
-    Put put2 = new Put(keyValue);
-    put.hashCode();
-    put2.equals("");
 
     // preping the db
     InMemoryDB databaseAdapter = new InMemoryDB();
@@ -163,10 +158,54 @@ public class ClientTest {
     // then do the put, expecting to write to the index
     c.put(primaryTable, put);
 
+    // make sure that the put actually made it to the table
     // then read all the values the primary table
     Get get = new Get(CRange.FULL_TABLE_RANGE);
     assertEquals(1, Iterators.size(pTable.get(get)));
 
+
+  }
+
+  @Test
+  public void testFlushPuts() throws Exception {
+    // create the put for the table
+    CKeyValue keyValue = new CKeyValue("rowid".getBytes(), "f".getBytes(),
+        "q".getBytes(), "v".getBytes());
+    ArrayList<CKeyValue> keyValueList = new ArrayList<CKeyValue>();
+    keyValueList.add(keyValue);
+    Put put = new Put(keyValueList);
+    
+    //prep all the mocking
+    
+    // mock out the index
+    Index mockIndex = EasyMock.createMock(Index.class);
+    EasyMock.expect(mockIndex.getColumnFamily()).andReturn("f".getBytes());
+    EasyMock.expect(mockIndex.getColumnQualifier()).andReturn("q".getBytes());
+    mockIndex.flush();
+    expectLastCall();
+    mockIndex.handlePut(EasyMock.anyObject(Put.class));
+
+    //mock out the database
+    String primaryTable = "primary";
+    DatabaseAdapter db = PowerMock.createMock(DatabaseAdapter.class);
+    TableAdapter mockTable = PowerMock.createMock(TableAdapter.class);
+    expect(db.getTableAdapter(primaryTable)).andReturn(mockTable);
+    // check that we actually do a put and flush
+    mockTable.put(put);
+    mockTable.flush();
+    
+    // mock out the client
+    Configuration clientConf = new Configuration(false);
+    Client c = PowerMock.createPartialMock(Client.class,
+        new String[] { "getIndices", "getDatabaseAdapter" }, clientConf);
+    // return the mock index when asked
+    expect(c.getIndices()).andReturn(new Index[] { mockIndex });
+    PowerMock.expectPrivate(c, "getDatabaseAdapter").andReturn(db);
+
+    // run the test
+    PowerMock.replayAll(mockIndex);
+    // then do the put, expecting to write to the index
+    c.putAndFlush(primaryTable, put);
 
   }
 
@@ -187,7 +226,7 @@ public class ClientTest {
   }
 
   @Test
-  public void testGetIndicies() throws Exception {
+  public void testGetIndiciesWithConfPass() throws Exception {
     MockIndex ix1 = new MockIndex("foo", 0, true, "a".getBytes(),
         "b".getBytes(), "c", "d");
     MockIndex ix2 = new MockIndex("bar", 0, true, "e".getBytes(),
