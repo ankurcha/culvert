@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bah.culvert.data.index;
+package com.bah.culvert.index;
 
 import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.constraints.filter.KeyOnlyFilter;

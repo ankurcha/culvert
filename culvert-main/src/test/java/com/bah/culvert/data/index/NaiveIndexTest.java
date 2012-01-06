@@ -29,6 +29,8 @@ import com.bah.culvert.adapter.DatabaseAdapter;
 import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.Result;
+import com.bah.culvert.index.Index;
+import com.bah.culvert.index.NaiveIndex;
 import com.bah.culvert.inmemory.InMemoryDB;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.bah.culvert.transactions.Put;

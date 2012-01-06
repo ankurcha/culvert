@@ -38,7 +38,7 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.configuration.CConfiguration;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.inmemory.InMemoryDB;
 import com.bah.culvert.mock.MockDatabaseAdapter;
 import com.bah.culvert.mock.MockIndex;

@@ -29,7 +29,7 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.constraints.Constraint;
 import com.bah.culvert.constraints.Join;
 import com.bah.culvert.data.CColumn;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.util.Bytes;
 
 /**

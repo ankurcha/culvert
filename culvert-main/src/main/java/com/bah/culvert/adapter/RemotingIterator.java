@@ -40,7 +40,7 @@ import com.bah.culvert.adapter.RemotingIterator.RemoteQueryStatusHolder.QuerySta
 import com.bah.culvert.configuration.CConfiguration;
 import com.bah.culvert.data.Result;
 import com.bah.culvert.data.ResultComparator;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.util.Bytes;
 import com.bah.culvert.util.Exceptions;
 

@@ -35,7 +35,7 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.constraints.Constraint;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.Result;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.transactions.Put;
 import com.bah.culvert.util.BaseConfigurable;
 import com.bah.culvert.util.Bytes;

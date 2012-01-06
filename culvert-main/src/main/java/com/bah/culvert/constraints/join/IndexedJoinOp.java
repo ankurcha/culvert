@@ -29,7 +29,7 @@ import com.bah.culvert.data.CColumn;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
 import com.bah.culvert.data.Result;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.bah.culvert.transactions.Get;
 import com.bah.culvert.transactions.Put;

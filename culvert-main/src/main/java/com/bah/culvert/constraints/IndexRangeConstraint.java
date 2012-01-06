@@ -26,7 +26,7 @@ import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 
 import com.bah.culvert.data.CRange;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 
 /**

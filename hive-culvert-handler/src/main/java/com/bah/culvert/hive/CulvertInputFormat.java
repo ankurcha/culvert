@@ -54,7 +54,7 @@ import com.bah.culvert.constraints.Constraint;
 import com.bah.culvert.constraints.IndexRangeConstraint;
 import com.bah.culvert.data.CRange;
 import com.bah.culvert.data.Result;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.util.Bytes;
 import com.bah.culvert.util.LexicographicBytesComparator;
 

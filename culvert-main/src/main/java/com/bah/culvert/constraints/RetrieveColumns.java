@@ -26,7 +26,7 @@ import org.apache.hadoop.io.ObjectWritable;
 
 import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.data.CColumn;
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.google.common.base.Preconditions;
 

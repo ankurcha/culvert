@@ -23,7 +23,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 
-import com.bah.culvert.data.index.Index;
+import com.bah.culvert.index.Index;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.bah.culvert.transactions.Put;
 

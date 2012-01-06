@@ -26,6 +26,8 @@ import org.junit.Test;
 import com.bah.culvert.adapter.DatabaseAdapter;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.Result;
+import com.bah.culvert.index.Index;
+import com.bah.culvert.index.TermBasedIndex;
 import com.bah.culvert.inmemory.InMemoryDB;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.bah.culvert.transactions.Put;
