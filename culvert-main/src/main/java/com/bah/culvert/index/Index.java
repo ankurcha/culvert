@@ -29,18 +29,26 @@ import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
+import org.mortbay.log.Log;
 
 import com.bah.culvert.Client;
 import com.bah.culvert.adapter.DatabaseAdapter;
 import com.bah.culvert.adapter.TableAdapter;
+import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.bah.culvert.transactions.Put;
 import com.bah.culvert.util.BaseConfigurable;
+import com.bah.culvert.util.Bytes;
+import com.bah.culvert.util.ConfUtils;
 import com.bah.culvert.util.LexicographicBytesComparator;
 import com.google.common.base.Objects;
 
@@ -65,6 +73,9 @@ public abstract class Index extends BaseConfigurable implements Writable {
   private static final String COL_QUAL_CONF_KEY = "culvert.index.qualifier";
   private static final String QUAL_BASE64_ENCODED_CONF_KEY = "culvert.index.qual.base64";
 
+  private static final String ACCEPTOR_CLASS_KEY = "culvert.index.acceptor.class";
+  private static final String ACCEPTOR_CONF_KEY = "culvert.index.acceptor.conf";
+  
 
   /**
    * For use with {@link #readFields(DataInput)}
@@ -82,21 +93,33 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * @param primaryTable
    * @param indexTable
    */
+  @Deprecated
   public Index(String name, byte[] columnFamily, byte[] columnQualifier,
       DatabaseAdapter database, String primaryTable, String indexTable) {
-    super();
-    Configuration conf = new Configuration();
+    Configuration conf = new Configuration(false);
     super.setConf(conf);
 
     // Set the configuration
     Index.setIndexName(name, conf);
     Index.setColumnFamily(columnFamily, conf);
     Index.setColumnQualifier(columnQualifier, conf);
+    Acceptor accept = new ColumnMatchingAcceptor(columnFamily, columnQualifier);
+    Index.setAcceptor(accept, conf);
     Index.setPrimaryTable(primaryTable, conf);
     Index.setIndexTable(indexTable, conf);
 
     // Store the database
     Index.setDatabaseAdapter(database, conf);
+  }
+
+  public Index(String name, Acceptor acceptor, DatabaseAdapter database,
+      String primaryTable, String indexTable) {
+
+  }
+
+  public Index(String name, Class<? extends Acceptor> acceptor,
+      DatabaseAdapter database, String primaryTable, String indexTable) {
+
   }
 
   /**
@@ -143,6 +166,32 @@ public abstract class Index extends BaseConfigurable implements Writable {
    */
   public static void setColumnQualifier(String colQual, Configuration conf) {
     conf.set(COL_QUAL_CONF_KEY, colQual);
+  }
+
+  /**
+   * Set the acceptor the index should use
+   * @param clazz {@link Acceptor} to store
+   * @param acceptorConf {@link Configuration} for the acceptor
+   * @param conf {@link Configuration} for the index in which to store the
+   *        acceptor and its conf
+   */
+  public static void setAcceptor(Class<? extends Acceptor> clazz,
+      Configuration acceptorConf, Configuration conf) {
+    conf.setClass(ACCEPTOR_CLASS_KEY, clazz, Acceptor.class);
+    ConfUtils.packConfigurationInPrefix(ACCEPTOR_CONF_KEY, acceptorConf, conf);
+  }
+
+  /**
+   * Set the {@link Acceptor} the index should use. This {@link Acceptor} will
+   * not be stored as-is, so it must be fully reinstantiated post a call to
+   * {@link Acceptor#setConf(Configuration)}.
+   * @param acceptor {@link Acceptor} to store. The {@link Acceptor Acceptor's}
+   *        configuration will be extracted, stored, and reapplied on use.
+   * @param conf {@link Configuration} for the index in which to store the
+   *        acceptor and its conf
+   */
+  public static void setAcceptor(Acceptor acceptor, Configuration conf) {
+    setAcceptor(acceptor.getClass(), acceptor.getConf(), conf);
   }
 
   /**
@@ -432,5 +481,119 @@ public abstract class Index extends BaseConfigurable implements Writable {
     TableAdapter table = this.getIndexTable();
     if (table != null)
       table.flush();
+  }
+
+  /**
+   * Get the {@link Acceptor} associated with this index
+   * @return a configured {@link Acceptor}, if one is stored
+   * @throws RuntimeException if no valid acceptor is found
+   */
+  public Acceptor getAcceptor() {
+    try {
+      // load the acceptor
+    Class<? extends Acceptor> clazz = this.getConf().getClass(
+        ACCEPTOR_CLASS_KEY, Acceptor.AcceptNone.class, Acceptor.class);
+      Acceptor inst = clazz.newInstance();
+      // retrieve its configuration
+      Configuration conf = ConfUtils.unpackConfigurationInPrefix(
+          ACCEPTOR_CONF_KEY, getConf());
+      inst.setConf(conf);
+      return inst;
+    } catch (Exception e) {
+      throw new IllegalStateException(
+          "Configuration did not store a valid acceptor.", e);
+    }
+  }
+
+  /**
+   * Acceptor that matches the {@link CKeyValue} against the stored column
+   * family and column qualifier.
+   * <p>
+   * Only {@link CKeyValue CKeyValues} that match <b>both</b> the family and
+   * qualifier will be accepted
+   */
+  public static class ColumnMatchingAcceptor extends Acceptor {
+
+    private static final String COL_FAM_CONF_KEY = "culvert.index.acceptor.column.family";
+    private static final String FAM_BASE64_ENCODED_CONF_KEY = "culvert.index.acceptor.column.family.base64";
+    private static final String COL_QUAL_CONF_KEY = "culvert.index.acceptor.column.qualifier";
+    private static final String QUAL_BASE64_ENCODED_CONF_KEY = "culvert.index.acceptor.column.qual.base64";
+
+    private byte[] cf;
+    private byte[] cq;
+
+    // Guarantee consistent access to cf/cq
+    private final Lock columnLock = new ReentrantLock();
+
+    /**
+     * Match {@link CKeyValue} against the specified column family and column
+     * qualifier.
+     * <p>
+     * Matches are done byte-wise, lexicographically
+     * @param cf family to compare against (this is checked first)
+     * @param cq qualifier to compare against (checked second)
+     */
+    public ColumnMatchingAcceptor(byte[] cf, byte[] cq) {
+      Configuration conf = new Configuration(false);
+      setColumn(cf, cq, conf);
+      super.setConf(conf);
+    }
+
+    /**
+     * Match {@link CKeyValue} against the specified column family and column
+     * qualifier.
+     * <p>
+     * This must be configured via {@link #setConf(Configuration)} with the
+     * expected values for the family and qualifier already stored in the
+     * {@link Configuration} via
+     * {@link #setColumn(byte[], byte[], Configuration)}
+     */
+    public ColumnMatchingAcceptor() {
+    }
+
+    /**
+     * Set the column family and qualifier that this acceptor should use when
+     * determining if a row
+     * @param cf to store
+     * @param cq to store
+     * @param conf to be updated. The same {@link Configuration} should be set
+     *        via {@link #setConf(Configuration)}
+     */
+    @SuppressWarnings("synthetic-access")
+    public static void setColumn(byte[] cf, byte[] cq, Configuration conf) {
+      setBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY, COL_FAM_CONF_KEY, cf,
+          conf);
+      setBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY, COL_QUAL_CONF_KEY, cq,
+          conf);
+    }
+
+    @SuppressWarnings("synthetic-access")
+    @Override
+    public void setConf(Configuration conf) {
+      super.setConf(conf);
+      columnLock.lock();
+      try {
+        cf = getBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY,
+            COL_FAM_CONF_KEY, conf);
+        cq = getBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY,
+            COL_QUAL_CONF_KEY, conf);
+      } finally {
+        columnLock.unlock();
+      }
+    }
+
+    @Override
+    public boolean accept(CKeyValue kv) {
+      columnLock.lock();
+      try{
+      // actually do the comparison
+      if (Bytes.compareTo(cf, kv.getFamily()) == 0)
+        if (Bytes.compareTo(cq, kv.getQualifier()) == 0)
+          return true;
+      return false;
+      }finally{
+        columnLock.unlock();
+      }
+    }
   }
 }

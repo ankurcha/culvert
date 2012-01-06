@@ -38,6 +38,7 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.configuration.CConfiguration;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
+import com.bah.culvert.index.Acceptor;
 import com.bah.culvert.index.Index;
 import com.bah.culvert.inmemory.InMemoryDB;
 import com.bah.culvert.mock.MockDatabaseAdapter;
@@ -126,8 +127,11 @@ public class ClientTest {
 
     // mock out the index
     Index mockIndex = EasyMock.createMock(Index.class);
-    EasyMock.expect(mockIndex.getColumnFamily()).andReturn("f".getBytes());
-    EasyMock.expect(mockIndex.getColumnQualifier()).andReturn("q".getBytes());
+    Acceptor accept = new Index.ColumnMatchingAcceptor("f".getBytes(),
+        "q".getBytes());
+    // have to set the configuration, because we do a lazy-ish load
+    accept.setConf(accept.getConf());
+    EasyMock.expect(mockIndex.getAcceptor()).andReturn(accept);
     mockIndex.handlePut(EasyMock.anyObject(Put.class));
 
     // mock out the client
@@ -179,8 +183,11 @@ public class ClientTest {
     
     // mock out the index
     Index mockIndex = EasyMock.createMock(Index.class);
-    EasyMock.expect(mockIndex.getColumnFamily()).andReturn("f".getBytes());
-    EasyMock.expect(mockIndex.getColumnQualifier()).andReturn("q".getBytes());
+    Acceptor accept = new Index.ColumnMatchingAcceptor("f".getBytes(),
+        "q".getBytes());
+    // have to set the configuration, because we do a lazy load
+    accept.setConf(accept.getConf());
+    EasyMock.expect(mockIndex.getAcceptor()).andReturn(accept);
     mockIndex.flush();
     expectLastCall();
     mockIndex.handlePut(EasyMock.anyObject(Put.class));

@@ -21,4 +21,18 @@ public abstract class Acceptor extends BaseConfigurable {
   public abstract boolean accept(CKeyValue kv);
   
 
+  /**
+   * Reject all key/values.
+   * <p>
+   * This is the default acceptor, if none can be found.
+   */
+  public static class AcceptNone extends Acceptor {
+
+    @Override
+    public boolean accept(CKeyValue kv) {
+      return false;
+    }
+
+  }
+
 }

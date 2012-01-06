@@ -35,6 +35,7 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.constraints.Constraint;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.Result;
+import com.bah.culvert.index.Acceptor;
 import com.bah.culvert.index.Index;
 import com.bah.culvert.transactions.Put;
 import com.bah.culvert.util.BaseConfigurable;
@@ -124,7 +125,6 @@ public class Client extends BaseConfigurable implements Closeable {
   }
 
   private void put(String tableName, Put put, boolean flush) throws IOException {
-
     // first write to the primary store. If this fails, then we don't index it.
     DatabaseAdapter db = getDatabaseAdapter();
     TableAdapter primary = db.getTableAdapter(tableName);
@@ -132,25 +132,32 @@ public class Client extends BaseConfigurable implements Closeable {
     if (flush)
       primary.flush();
 
-    // write the put into the indexes
+    // TODO write the put into the indexes
     // here we should employ a WAL, similar to Lily
+
     // Get the KeyValue list
     Iterable<CKeyValue> keyValueList = put.getKeyValueList();
     List<CKeyValue> indexValues = new ArrayList<CKeyValue>();
+
     // for each index, add only the keyvalues that should be indexed
     for (Index index : getIndices()) {
       indexValues.clear();
-      for (CKeyValue keyValue : keyValueList) {
-        if (Bytes.compareTo(index.getColumnFamily(), keyValue.getFamily()) == 0) {
-          if (Bytes.compareTo(index.getColumnQualifier(),
-              keyValue.getQualifier()) == 0) {
+      // wrap in a try so we at least index some stuff
+      try {
+        Acceptor acceptor = index.getAcceptor();
+
+        // for each kv, check to see if we should index it
+        for (CKeyValue keyValue : keyValueList) {
+          if (acceptor.accept(keyValue))
             indexValues.add(keyValue);
-          }
         }
+        index.handlePut(new Put(indexValues));
+        if (flush)
+          index.flush();
+      } catch (IllegalStateException e) {
+        LOG.error("Index " + index.getName()
+            + " did could not process the put - skipping it", e);
       }
-      index.handlePut(new Put(indexValues));
-      if (flush)
-        index.flush();
     }
   }
 
