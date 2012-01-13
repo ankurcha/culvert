@@ -38,8 +38,9 @@ import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.configuration.CConfiguration;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
-import com.bah.culvert.index.Acceptor;
 import com.bah.culvert.index.Index;
+import com.bah.culvert.index.acceptor.Acceptor;
+import com.bah.culvert.index.acceptor.ColumnMatchingAcceptor;
 import com.bah.culvert.inmemory.InMemoryDB;
 import com.bah.culvert.mock.MockDatabaseAdapter;
 import com.bah.culvert.mock.MockIndex;
@@ -127,7 +128,7 @@ public class ClientTest {
 
     // mock out the index
     Index mockIndex = EasyMock.createMock(Index.class);
-    Acceptor accept = new Index.ColumnMatchingAcceptor("f".getBytes(),
+    Acceptor accept = new ColumnMatchingAcceptor("f".getBytes(),
         "q".getBytes());
     // have to set the configuration, because we do a lazy-ish load
     accept.setConf(accept.getConf());
@@ -183,7 +184,7 @@ public class ClientTest {
     
     // mock out the index
     Index mockIndex = EasyMock.createMock(Index.class);
-    Acceptor accept = new Index.ColumnMatchingAcceptor("f".getBytes(),
+    Acceptor accept = new ColumnMatchingAcceptor("f".getBytes(),
         "q".getBytes());
     // have to set the configuration, because we do a lazy load
     accept.setConf(accept.getConf());

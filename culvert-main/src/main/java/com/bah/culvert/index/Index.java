@@ -20,12 +20,7 @@ package com.bah.culvert.index;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -34,7 +29,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.mortbay.log.Log;
@@ -44,6 +38,8 @@ import com.bah.culvert.adapter.DatabaseAdapter;
 import com.bah.culvert.adapter.TableAdapter;
 import com.bah.culvert.data.CKeyValue;
 import com.bah.culvert.data.CRange;
+import com.bah.culvert.index.acceptor.Acceptor;
+import com.bah.culvert.index.acceptor.ColumnMatchingAcceptor;
 import com.bah.culvert.iterators.SeekingCurrentIterator;
 import com.bah.culvert.transactions.Put;
 import com.bah.culvert.util.BaseConfigurable;
@@ -114,12 +110,13 @@ public abstract class Index extends BaseConfigurable implements Writable {
 
   public Index(String name, Acceptor acceptor, DatabaseAdapter database,
       String primaryTable, String indexTable) {
+    // TODO implement constructor
 
   }
 
   public Index(String name, Class<? extends Acceptor> acceptor,
       DatabaseAdapter database, String primaryTable, String indexTable) {
-
+    // TODO implement constructor
   }
 
   /**
@@ -200,7 +197,8 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * @param conf The configuration to set.
    */
   public static void setColumnFamily(byte[] colFam, Configuration conf) {
-    setBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY, COL_FAM_CONF_KEY, colFam,
+    ConfUtils.setBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY,
+        COL_FAM_CONF_KEY, colFam,
         conf);
   }
 
@@ -211,52 +209,9 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * @param conf The configuration to set.
    */
   public static void setColumnQualifier(byte[] colQual, Configuration conf) {
-    setBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY, COL_QUAL_CONF_KEY,
+    ConfUtils.setBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY,
+        COL_QUAL_CONF_KEY,
         colQual, conf);
-  }
-
-  /**
-   * Used to set a key indicating if the string value held by another
-   * configuration key is a base64 encoded binary or not.
-   * @param isValueBinaryEncodedSetting The key telling weather or not the other
-   *        key (setting) is base64.
-   * @param potentiallyEncodedSetting The actual key that might be base64
-   *        encoded.
-   * @param data The data to set as base64.
-   * @param conf The configuration to do the setting on.
-   */
-  private static void setBinaryConfSetting(String isValueBinaryEncodedSetting,
-      String potentiallyEncodedSetting, byte[] data, Configuration conf) {
-    CharsetDecoder decoder = UTF_8.newDecoder();
-    decoder.onMalformedInput(CodingErrorAction.REPORT);
-    try {
-      CharBuffer colFamString = decoder.decode(ByteBuffer.wrap(data));
-      conf.setBoolean(isValueBinaryEncodedSetting, false);
-      conf.set(potentiallyEncodedSetting, colFamString.toString());
-    } catch (CharacterCodingException e) {
-      conf.setBoolean(isValueBinaryEncodedSetting, true);
-      conf.set(potentiallyEncodedSetting, new String(Base64.encodeBase64(data),
-          UTF_8));
-    }
-  }
-
-  /**
-   * Get the contents of a key that might be binary.
-   * @param isBinarySettingKey Tells us weather or not the field is binary.
-   * @param potentiallyBinaryEncodedSetting The actual field name that might
-   *        contain binary data.
-   * @param conf The configuration to retrieve from
-   * @return The decoded value to return.
-   */
-  private static byte[] getBinaryConfSetting(String isBinarySettingKey,
-      String potentiallyBinaryEncodedSetting, Configuration conf) {
-    String value = conf.get(potentiallyBinaryEncodedSetting);
-    boolean isBase64 = conf.getBoolean(isBinarySettingKey, false);
-    if (isBase64) {
-      return Base64.decodeBase64(value.getBytes());
-    } else {
-      return value.getBytes();
-    }
   }
 
   public static String getPrimaryTableName(Configuration conf) {
@@ -314,8 +269,8 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * @return The column family that this index is configured to index.
    */
   public byte[] getColumnFamily() {
-    return getBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY, COL_FAM_CONF_KEY,
-        getConf());
+    return ConfUtils.getBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY,
+        COL_FAM_CONF_KEY, getConf());
   }
 
   /**
@@ -323,7 +278,7 @@ public abstract class Index extends BaseConfigurable implements Writable {
    * @return The column family that this index is configured to index.
    */
   public byte[] getColumnQualifier() {
-    return getBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY,
+    return ConfUtils.getBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY,
         COL_QUAL_CONF_KEY, getConf());
   }
 
@@ -505,95 +460,5 @@ public abstract class Index extends BaseConfigurable implements Writable {
     }
   }
 
-  /**
-   * Acceptor that matches the {@link CKeyValue} against the stored column
-   * family and column qualifier.
-   * <p>
-   * Only {@link CKeyValue CKeyValues} that match <b>both</b> the family and
-   * qualifier will be accepted
-   */
-  public static class ColumnMatchingAcceptor extends Acceptor {
 
-    private static final String COL_FAM_CONF_KEY = "culvert.index.acceptor.column.family";
-    private static final String FAM_BASE64_ENCODED_CONF_KEY = "culvert.index.acceptor.column.family.base64";
-    private static final String COL_QUAL_CONF_KEY = "culvert.index.acceptor.column.qualifier";
-    private static final String QUAL_BASE64_ENCODED_CONF_KEY = "culvert.index.acceptor.column.qual.base64";
-
-    private byte[] cf;
-    private byte[] cq;
-
-    // Guarantee consistent access to cf/cq
-    private final Lock columnLock = new ReentrantLock();
-
-    /**
-     * Match {@link CKeyValue} against the specified column family and column
-     * qualifier.
-     * <p>
-     * Matches are done byte-wise, lexicographically
-     * @param cf family to compare against (this is checked first)
-     * @param cq qualifier to compare against (checked second)
-     */
-    public ColumnMatchingAcceptor(byte[] cf, byte[] cq) {
-      Configuration conf = new Configuration(false);
-      setColumn(cf, cq, conf);
-      super.setConf(conf);
-    }
-
-    /**
-     * Match {@link CKeyValue} against the specified column family and column
-     * qualifier.
-     * <p>
-     * This must be configured via {@link #setConf(Configuration)} with the
-     * expected values for the family and qualifier already stored in the
-     * {@link Configuration} via
-     * {@link #setColumn(byte[], byte[], Configuration)}
-     */
-    public ColumnMatchingAcceptor() {
-    }
-
-    /**
-     * Set the column family and qualifier that this acceptor should use when
-     * determining if a row
-     * @param cf to store
-     * @param cq to store
-     * @param conf to be updated. The same {@link Configuration} should be set
-     *        via {@link #setConf(Configuration)}
-     */
-    @SuppressWarnings("synthetic-access")
-    public static void setColumn(byte[] cf, byte[] cq, Configuration conf) {
-      setBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY, COL_FAM_CONF_KEY, cf,
-          conf);
-      setBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY, COL_QUAL_CONF_KEY, cq,
-          conf);
-    }
-
-    @SuppressWarnings("synthetic-access")
-    @Override
-    public void setConf(Configuration conf) {
-      super.setConf(conf);
-      columnLock.lock();
-      try {
-        cf = getBinaryConfSetting(FAM_BASE64_ENCODED_CONF_KEY,
-            COL_FAM_CONF_KEY, conf);
-        cq = getBinaryConfSetting(QUAL_BASE64_ENCODED_CONF_KEY,
-            COL_QUAL_CONF_KEY, conf);
-      } finally {
-        columnLock.unlock();
-      }
-    }
-
-    @Override
-    public boolean accept(CKeyValue kv) {
-      columnLock.lock();
-      try{
-      // actually do the comparison
-      if (Bytes.compareTo(cf, kv.getFamily()) == 0)
-        if (Bytes.compareTo(cq, kv.getQualifier()) == 0)
-          return true;
-      return false;
-      }finally{
-        columnLock.unlock();
-      }
-    }
-  }
 }

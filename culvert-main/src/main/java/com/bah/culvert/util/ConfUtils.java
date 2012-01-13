@@ -17,11 +17,19 @@
  */
 package com.bah.culvert.util;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.util.Map.Entry;
 
 import javax.security.auth.login.ConfigurationSpi;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
+
+import com.bah.culvert.index.Index;
 
 public class ConfUtils {
 
@@ -86,6 +94,50 @@ public class ConfUtils {
       }
     }
     return out;
+  }
+
+  /**
+   * Get the contents of a key that might be binary.
+   * @param isBinarySettingKey Tells us weather or not the field is binary.
+   * @param potentiallyBinaryEncodedSetting The actual field name that might
+   *        contain binary data.
+   * @param conf The configuration to retrieve from
+   * @return The decoded value to return.
+   */
+  public static byte[] getBinaryConfSetting(String isBinarySettingKey,
+      String potentiallyBinaryEncodedSetting, Configuration conf) {
+    String value = conf.get(potentiallyBinaryEncodedSetting);
+    boolean isBase64 = conf.getBoolean(isBinarySettingKey, false);
+    if (isBase64) {
+      return Base64.decodeBase64(value.getBytes());
+    } else {
+      return value.getBytes();
+    }
+  }
+
+  /**
+   * Used to set a key indicating if the string value held by another
+   * configuration key is a base64 encoded binary or not.
+   * @param isValueBinaryEncodedSetting The key telling weather or not the other
+   *        key (setting) is base64.
+   * @param potentiallyEncodedSetting The actual key that might be base64
+   *        encoded.
+   * @param data The data to set as base64.
+   * @param conf The configuration to do the setting on.
+   */
+  public static void setBinaryConfSetting(String isValueBinaryEncodedSetting,
+      String potentiallyEncodedSetting, byte[] data, Configuration conf) {
+    CharsetDecoder decoder = Index.UTF_8.newDecoder();
+    decoder.onMalformedInput(CodingErrorAction.REPORT);
+    try {
+      CharBuffer colFamString = decoder.decode(ByteBuffer.wrap(data));
+      conf.setBoolean(isValueBinaryEncodedSetting, false);
+      conf.set(potentiallyEncodedSetting, colFamString.toString());
+    } catch (CharacterCodingException e) {
+      conf.setBoolean(isValueBinaryEncodedSetting, true);
+      conf.set(potentiallyEncodedSetting, new String(Base64.encodeBase64(data),
+          Index.UTF_8));
+    }
   }
 
 }
